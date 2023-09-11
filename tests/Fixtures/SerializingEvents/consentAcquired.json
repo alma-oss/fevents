@@ -1,0 +1,36 @@
+{
+    "schema": 1,
+    "id": "b206e2f4-1a8a-447b-a773-5bb3255eebd7",
+    "correlation_id": "b206e2f4-1a8a-447b-a773-5bb3255eebd7",
+    "causation_id": "b206e2f4-1a8a-447b-a773-5bb3255eebd7",
+    "timestamp": "2019-05-11T09:13:37.789+02:00",
+    "event": "consent_acquired",
+    "domain": "consents",
+    "context": "consentor",
+    "purpose": "devel",
+    "version": "v1v0v0",
+    "zone": "all",
+    "bucket": "devel",
+    "resource": {
+        "name": "personAggregates-state",
+        "href": "http://consents-personAggregate-common-stable.service.devel1-services.consul/api/v0/person-aggregates/3277d9fc-9331-4758-9749-cd991f49bacc/state?bucket=common&zone=testing"
+    },
+    "meta_data": {
+        "created_at": "2019-05-11T09:13:37.789+02:00",
+        "processed_by": {
+            "instance": "consents-service-test-stable",
+            "commit": "g123",
+            "image_version": "42-2019"
+        }
+    },
+    "key_data": {
+        "person_id": "3277d9fc-9331-4758-9749-cd991f49bacc",
+        "purpose": "data_processing",
+        "scope": "lmc_cz"
+    },
+    "domain_data": {
+        "email": "foo@bar.boo",
+        "phone": "+420.777666777",
+        "contract_id": "b206e2f4-1a8a-447b-a773-5bb3255eebd7"
+    }
+}

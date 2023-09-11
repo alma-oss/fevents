@@ -1,0 +1,6 @@
+FSharp.Core
+FSharp.Data
+NJsonSchema
+Alma.ErrorHandling
+Alma.Kafka
+Alma.Serializer
