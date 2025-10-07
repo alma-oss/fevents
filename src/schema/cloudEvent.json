@@ -1,0 +1,61 @@
+[
+    {
+        "specversion": "version",
+        "type": "com.almacareer.domain.someEvent.v1.0.0",
+        "source": "https://dev-consents.almacareer.tech/acl",
+        "id": "1db372d2-3617-4cbc-a8d1-e7ab6f3b8ad8",
+        "time": "date-time-string",
+        "datacontenttype": "application/json",
+        "dataschema": "https://github.com/almacareer/events/blob/master/some-event-schema.json",
+        "data": {
+            "some": "event"
+        }
+    },
+    {
+        "specversion": "version",
+        "type": "com.almacareer.consents.localDataAcceptationReceived.v1.0.0",
+        "source": "https://dev-consents.almacareer.tech/acl-lda",
+        "id": "1db372d2-3617-4cbc-a8d1-e7ab6f3b8ad8",
+        "time": "date-time-string",
+        "subject": "uuid-as-string",
+        "datacontenttype": "application/json",
+        "dataschema": "https://github.com/almacareer/consents-events/blob/master/docs/events/consents/local_data_acceptation_received/local_data_acceptation_received_schema.json",
+        "data": {
+            "schema": 1,
+            "id": "1db372d2-3617-4cbc-a8d1-e7ab6f3b8ad8",
+            "correlation_id": "1db372d2-3617-4cbc-a8d1-e7ab6f3b8ad8",
+            "causation_id": "4db372d2-3617-4cbc-a8d1-e7ab6f3b8ad8",
+            "timestamp": "2018-02-01T14:45:22.044Z",
+            "event": "local_data_acceptation_received",
+            "domain": "consents",
+            "context": "interactionCollector",
+            "purpose": "dev",
+            "version": "v1v0v0",
+            "zone": "arch",
+            "bucket": "test",
+            "meta_data": {
+                "created_at": "2018-02-01T14:46:22.044Z"
+            },
+            "key_data": {
+                "id": "uuid-as-string",
+                "timestamp": "2018-02-01T14:45:22.044Z",
+                "browser_info": "chrome",
+                "ip_address": "44.33.55.66",
+                "revision": 42,
+                "source": "lmc.eu"
+            },
+            "domain_data": {
+                "accept_type": "accept_all",
+                "accepted_categories": [
+                    "necessary",
+                    "analytics"
+                ],
+                "rejected_categories": [
+                    "advertisement"
+                ],
+                "days_of_acceptation": 365,
+                "language": "CZ"
+            }
+        }
+    }
+]

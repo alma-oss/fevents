@@ -16,6 +16,7 @@
 
   <ItemGroup>
     <Compile Include="SerializingEvents.fs" />
+    <Compile Include="CloudEvents.fs" />
     <Compile Include="Tests.fs" />
   </ItemGroup>
 
