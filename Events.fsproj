@@ -19,10 +19,18 @@
     <Compile Include="src/Parser.fs" />
     <Compile Include="src/JsonSchema.fs" />
     <Compile Include="src/CommonTypes.fs" />
+    <Compile Include="src/CloudEvent.fs" />
+    
   </ItemGroup>
 
   <ItemGroup>
     <Compile Include="src/TestsUtils.fs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="src/schema/cloudEvent.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
 
   <Import Project=".paket\Paket.Restore.targets" />

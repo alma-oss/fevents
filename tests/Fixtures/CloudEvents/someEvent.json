@@ -1,0 +1,18 @@
+{
+    "specversion": "1.0",
+    "id": "b206e2f4-1a8a-447b-a773-5bb3255eebd7",
+    "source": "https://dev-consents.almacareer.tech/acl",
+    "type": "com.almacareer.consents.someEvent.v1.0.0",
+    "datacontenttype": "application/json",
+    "dataschema": "https://github.com/almacareer/fevents/some_event_schema.json",
+    "subject": "3277d9fc-9331-4758-9749-cd991f49bacc",
+    "time": "2019-05-11T09:13:37.789+02:00",
+    "data": {
+        "id": "b206e2f4-1a8a-447b-a773-5bb3255eebd7",
+        "timestamp": "2019-05-11T09:13:37.789+02:00",
+        "event": "some_event",
+        "key_data": {
+            "subject_id": "3277d9fc-9331-4758-9749-cd991f49bacc"
+        }
+    }
+}
