@@ -10,6 +10,7 @@ open Alma.Events.TestsUtils
 open Alma.ErrorHandling
 open FSharp.Data
 open Alma.Kafka
+open Alma.Serializer
 
 [<AutoOpen>]
 module SomeEvent =
@@ -28,10 +29,10 @@ module SomeEvent =
     and SubjectId = SubjectId of string
 
     type SomeEventDto = {
-        id: string
-        timestamp: string
-        event: string
-        key_data: KeyDataDto
+        Id: string
+        Timestamp: string
+        Event: string
+        KeyData: KeyDataDto
     }
 
     and KeyDataDto = {
@@ -48,7 +49,7 @@ module SomeEvent =
     }""">
 
     // Mock event parser for testing CloudEvent.parse function
-    let parseSomeEvent (data: string) =
+    let parseSomeEvent (data: string): Result<SomeEvent, _> =
         try
             let parsed = SomeEventSchema.Parse(data)
 
@@ -62,10 +63,10 @@ module SomeEvent =
 
     let toDto (event: SomeEvent) : SomeEventDto =
         {
-            id = event.Id |> EventId.value |> string
-            timestamp = event.Timestamp
-            event = event.Event |> EventName.value
-            key_data = { SubjectId = match event.KeyData.SubjectId with SubjectId id -> id }
+            Id = event.Id |> EventId.value |> string
+            Timestamp = event.Timestamp
+            Event = event.Event |> EventName.value
+            KeyData = { SubjectId = match event.KeyData.SubjectId with SubjectId id -> id }
         }
 
 let okOrFail = function
@@ -102,10 +103,15 @@ let cloudEventTests =
 
                     match result with
                     | Ok cloudEvent ->
-                        let serialized =
+                        let cloudEventDto = cloudEvent |> CloudEvent.mapData toDto
+
+                        let serialized = cloudEventDto |> CloudEvent.toJson [ Serialize.Pretty ]
+                        let fromHttpResponse =
                             cloudEvent
-                            |> CloudEventDto.fromCloudEvent toDto
-                            |> Alma.Serializer.Serialize.toJsonPretty
+                            |> CloudEvent.toHttpContent [ Serialize.Pretty ]
+                            |> fun (content) -> content.ReadAsStringAsync().Result
+
+                        Expect.equal serialized fromHttpResponse "Serialization from HttpContent should match direct serialization"
 
                         serialized
                         |> Actual

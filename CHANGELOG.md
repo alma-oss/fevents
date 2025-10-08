@@ -2,6 +2,11 @@
 
 <!-- There is always Unreleased section on the top. Subsections (Add, Changed, Fix, Removed) should be Add as needed. -->
 ## Unreleased
+- Use `CloudNative.CloudEvents` as a base type for `CloudEvent`
+- [**BC**] Remove `CloudEventDto` module and type, with other sub types
+- Add `CloudEvent` functions
+    - `toHttpContent`
+    - `toJson`
 
 ## 4.0.0 - 2025-10-08
 - [**BC**] Require `eventType` for a `CloudEvent`
