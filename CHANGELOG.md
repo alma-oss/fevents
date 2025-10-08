@@ -2,6 +2,7 @@
 
 <!-- There is always Unreleased section on the top. Subsections (Add, Changed, Fix, Removed) should be Add as needed. -->
 ## Unreleased
+- Add `CloudEvent.mapDataResult` function
 
 ## 5.0.0 - 2025-10-08
 - Use `CloudNative.CloudEvents` as a base type for `CloudEvent`
