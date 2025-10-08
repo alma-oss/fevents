@@ -76,14 +76,14 @@ type ParseError<'ParseEventError> =
 
 [<RequireQualifiedAccess>]
 module CloudEvent =
-    let create toCommon subject dataSchema source event =
+    let create toCommon subject eventType dataSchema source event =
         let commonEvent: CommonEvent = event |> toCommon
 
         {
             SpecVersion = V1_0
             Id = commonEvent.Id
             Source = source
-            Type = commonEvent.Event
+            Type = eventType
             DataContentType = ApplicationJson
             DataSchema = dataSchema
             Subject = subject event

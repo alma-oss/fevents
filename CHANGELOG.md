@@ -3,8 +3,10 @@
 <!-- There is always Unreleased section on the top. Subsections (Add, Changed, Fix, Removed) should be Add as needed. -->
 ## Unreleased
 
+- [**BC**] Require `eventType` for a `CloudEvent`
+
 ## 3.2.0 - 2025-10-08
-Add `CloudEventDto.fromCloudEventResult` function
+- Add `CloudEventDto.fromCloudEventResult` function
 
 ## 3.1.0 - 2025-10-07
 - Add types
