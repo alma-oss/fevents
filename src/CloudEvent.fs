@@ -81,13 +81,18 @@ module CloudEvent =
             ApplicationJson
             event
 
-    let mapData (f: 'EventA -> 'EventB) (event: CloudEvent) =
-        event.Data <-
-            match event.Data with
-            | :? 'EventA as data -> data |> f :> obj
-            | data -> data.GetType() |> failwithf "Unexpected data type: %A"
+    let mapDataResult (f: 'EventA -> Result<'EventB, 'Error>) (event: CloudEvent): Result<CloudEvent, 'Error> =
+        match event.Data with
+        | :? 'EventA as data ->
+            match data |> f with
+            | Ok data ->
+                event.Data <- data
+                Ok event
+            | Error e -> Error e
 
-        event
+        | data -> data.GetType() |> failwithf "Unexpected data type: %A"
+
+    let mapData (f: 'EventA -> 'EventB) = mapDataResult (f >> Ok) >> Result.orFail
 
     open FSharp.Data
 
