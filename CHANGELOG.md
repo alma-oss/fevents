@@ -3,6 +3,7 @@
 <!-- There is always Unreleased section on the top. Subsections (Add, Changed, Fix, Removed) should be Add as needed. -->
 ## Unreleased
 
+## 4.0.0 - 2025-10-08
 - [**BC**] Require `eventType` for a `CloudEvent`
 
 ## 3.2.0 - 2025-10-08
