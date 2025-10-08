@@ -1,22 +1,26 @@
 namespace Alma.Events
 
 open System
+open System.Text
+open CloudNative.CloudEvents
+open CloudNative.CloudEvents.Core
+open CloudNative.CloudEvents.Http
+open CloudNative.CloudEvents.NewtonsoftJson
+
 open Alma.Kafka
 open Alma.ErrorHandling
-open Utils
-
-type CloudEventSpecVersion =
-    | V1_0
-
-    override this.ToString() =
-        match this with
-        | V1_0 -> "1.0"
+open Alma.Serializer
 
 type ContentType =
     | ApplicationJson
 
 type EventSource = EventSource of Uri
 type DataSchema = DataSchema of Uri
+
+[<RequireQualifiedAccess>]
+module ContentType =
+    let value = function
+        | ApplicationJson -> "application/json"
 
 [<RequireQualifiedAccess>]
 module EventSource =
@@ -36,36 +40,6 @@ module DataSchema =
 
     let value (DataSchema dataSchema) = dataSchema
 
-/// Generic CloudEvent type following CloudEvents v1.0 specification
-type CloudEvent<'Event> = {
-    /// The version of the CloudEvents specification which the event uses (required)
-    SpecVersion: CloudEventSpecVersion
-
-    /// Identifies the event. Producers MUST ensure that source + id is unique for each distinct event (required)
-    Id: EventId
-
-    /// Identifies the context in which an event happened (required)
-    Source: EventSource
-
-    /// This attribute contains a value describing the type of event related to the originating occurrence (required)
-    Type: EventName
-
-    /// Content type of data value
-    DataContentType: ContentType
-
-    /// Identifies the schema that data adheres to
-    DataSchema: DataSchema
-
-    /// This identifies the subject of the event in the context of the event producer (optional)
-    Subject: string option
-
-    /// Timestamp of when the occurrence happened
-    Time: string
-
-    /// The event payload
-    Data: 'Event
-}
-
 type ParseError<'ParseEventError> =
     | InvalidJson of string * exn
     | UnsupportedVersion of string
@@ -76,25 +50,45 @@ type ParseError<'ParseEventError> =
 
 [<RequireQualifiedAccess>]
 module CloudEvent =
-    let create toCommon subject eventType dataSchema source event =
+    let private createCloudEvent (specVersion: CloudEventsSpecVersion) id source eventType subject dataSchema timestamp contentType (event: 'Event) =
+        let cloudEvent = new CloudEvent(specVersion)
+        cloudEvent.Id <- id |> EventId.value |> string
+        cloudEvent.Source <- source |> EventSource.value
+        cloudEvent.Type <- eventType |> EventName.value
+        cloudEvent.DataContentType <- contentType |> ContentType.value
+        cloudEvent.DataSchema <- dataSchema |> DataSchema.value
+
+        match subject with
+        | Some subj -> cloudEvent.Subject <- subj
+        | None -> ()
+
+        cloudEvent.Time <- Nullable(DateTimeOffset.Parse timestamp)
+        cloudEvent.Data <- event
+
+        Validation.CheckCloudEventArgument(cloudEvent, "cloudEvent")
+
+    let create toCommon subject eventType dataSchema source (event: 'Event) =
         let commonEvent: CommonEvent = event |> toCommon
 
-        {
-            SpecVersion = V1_0
-            Id = commonEvent.Id
-            Source = source
-            Type = eventType
-            DataContentType = ApplicationJson
-            DataSchema = dataSchema
-            Subject = subject event
-            Time = commonEvent.Timestamp
-            Data = event
-        }
+        createCloudEvent
+            CloudEventsSpecVersion.V1_0
+            commonEvent.Id
+            source
+            eventType
+            (subject event)
+            dataSchema
+            commonEvent.Timestamp
+            ApplicationJson
+            event
 
-    let mapData f cloudEvent =
-        { cloudEvent with Data = f cloudEvent.Data }
+    let mapData (f: 'EventA -> 'EventB) (event: CloudEvent) =
+        event.Data <-
+            match event.Data with
+            | :? 'EventA as data -> data |> f :> obj
+            | data -> data.GetType() |> failwithf "Unexpected data type: %A"
 
-    open Alma.ErrorHandling
+        event
+
     open FSharp.Data
 
     type private CloudEventSchema = JsonProvider<"src/schema/cloudEvent.json", SampleIsList=true>
@@ -106,7 +100,7 @@ module CloudEvent =
 
         let! specVersion =
             match parsed.Specversion with
-            | "1.0" -> Ok V1_0
+            | "1.0" -> Ok CloudEventsSpecVersion.V1_0
             | _ -> Error (UnsupportedVersion rawEvent)
 
         let! contentType =
@@ -129,75 +123,29 @@ module CloudEvent =
             |> parseEvent
             |> Result.mapError (fun err -> EventParseError (rawEvent, err))
 
-        return {
-            SpecVersion = specVersion
-            Id = parsed.Id |> EventId
-            Source = source
-            Type = parsed.Type |> EventName
-            DataContentType = contentType
-            DataSchema = dataSchema
-            Subject =
-                match parsed.Subject with
-                | Some (String.IsNotEmpty subject) -> Some subject
-                | _ -> None
-            Time = parsed.Time
-            Data = event
-        }
+        return createCloudEvent
+            specVersion
+            (EventId parsed.Id)
+            source
+            (EventName parsed.Type)
+            parsed.Subject
+            dataSchema
+            parsed.Time
+            contentType
+            event
     }
 
-/// CloudEvent DTO with only scalar types for serialization/deserialization
-type CloudEventDto<'EventDto> = {
-    /// The version of the CloudEvents specification which the event uses (required)
-    Specversion: string
+    let private createFormatter options =
+        JsonEventFormatter(Serialize.createSerializer options)
 
-    /// Identifies the event. Producers MUST ensure that source + id is unique for each distinct event (required)
-    Id: string
+    let toHttpContent options (cloudEvent: CloudEvent) =
+        cloudEvent.ToHttpContent(ContentMode.Structured, createFormatter options)
 
-    /// Identifies the context in which an event happened (required)
-    Source: string
+    let toJson options (cloudEvent: CloudEvent): string =
+        let formatter = createFormatter options
+        let bytes: ReadOnlyMemory<byte> =
+            cloudEvent
+            |> formatter.EncodeStructuredModeMessage
+            |> fst
 
-    /// This attribute contains a value describing the type of event related to the originating occurrence (required)
-    Type: string
-
-    /// Content type of data value
-    Datacontenttype: string
-
-    /// Identifies the schema that data adheres to
-    Dataschema: string
-
-    /// This identifies the subject of the event in the context of the event producer (optional)
-    Subject: string
-
-    /// Timestamp of when the occurrence happened
-    Time: string
-
-    /// The event payload as raw string/JSON
-    Data: 'EventDto
-}
-
-[<RequireQualifiedAccess>]
-module CloudEventDto =
-    let fromCloudEvent (dataDto: 'Event -> 'EventDto) (cloudEvent: CloudEvent<'Event>): CloudEventDto<'EventDto> =
-        {
-            Specversion = cloudEvent.SpecVersion.ToString()
-            Id = cloudEvent.Id |> EventId.value |> string
-            Source = cloudEvent.Source |> EventSource.value |> string
-            Type = cloudEvent.Type |> EventName.value
-            Datacontenttype =
-                match cloudEvent.DataContentType with
-                | ApplicationJson -> "application/json"
-            Dataschema = cloudEvent.DataSchema |> DataSchema.value |> string
-            Subject =
-                match cloudEvent.Subject with
-                | Some subject -> subject
-                | None -> null
-            Time = cloudEvent.Time
-            Data = dataDto cloudEvent.Data
-        }
-
-    let fromCloudEventResult (dataDto: 'Event -> Result<'EventDto, 'Error>) (cloudEvent: CloudEvent<'Event>): Result<CloudEventDto<'EventDto>, 'Error> =
-        result {
-            let! data = dataDto cloudEvent.Data
-
-            return fromCloudEvent (fun _ -> data) cloudEvent
-        }
+        Encoding.UTF8.GetString(bytes.ToArray(), 0, bytes.Length)

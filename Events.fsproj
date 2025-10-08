@@ -20,7 +20,6 @@
     <Compile Include="src/JsonSchema.fs" />
     <Compile Include="src/CommonTypes.fs" />
     <Compile Include="src/CloudEvent.fs" />
-    
   </ItemGroup>
 
   <ItemGroup>
