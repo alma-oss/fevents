@@ -2,6 +2,7 @@ namespace Alma.Events
 
 open System
 open Alma.Kafka
+open Alma.ErrorHandling
 open Utils
 
 type CloudEventSpecVersion =
@@ -192,4 +193,11 @@ module CloudEventDto =
                 | None -> null
             Time = cloudEvent.Time
             Data = dataDto cloudEvent.Data
+        }
+
+    let fromCloudEventResult (dataDto: 'Event -> Result<'EventDto, 'Error>) (cloudEvent: CloudEvent<'Event>): Result<CloudEventDto<'EventDto>, 'Error> =
+        result {
+            let! data = dataDto cloudEvent.Data
+
+            return fromCloudEvent (fun _ -> data) cloudEvent
         }
