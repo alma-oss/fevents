@@ -7,7 +7,7 @@ open Alma.ServiceIdentification
 
 open Alma.Events
 open Alma.Events.TestsUtils
-open Alma.ErrorHandling
+open Feather.ErrorHandling
 open FSharp.Data
 open Alma.Kafka
 open Alma.Serializer

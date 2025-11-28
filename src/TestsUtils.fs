@@ -4,7 +4,7 @@ namespace Alma.Events
 module TestsUtils =
     open Alma.Serializer
     open Alma.Events
-    open Alma.ErrorHandling
+    open Feather.ErrorHandling
 
     type AssertJson =
         | Expected of string

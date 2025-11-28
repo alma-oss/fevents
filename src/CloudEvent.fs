@@ -8,7 +8,7 @@ open CloudNative.CloudEvents.Http
 open CloudNative.CloudEvents.NewtonsoftJson
 
 open Alma.Kafka
-open Alma.ErrorHandling
+open Feather.ErrorHandling
 open Alma.Serializer
 
 type ContentType =

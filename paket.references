@@ -3,6 +3,6 @@ FSharp.Data
 NJsonSchema
 CloudNative.CloudEvents
 CloudNative.CloudEvents.NewtonsoftJson
-Alma.ErrorHandling
+Feather.ErrorHandling
 Alma.Kafka
 Alma.Serializer
