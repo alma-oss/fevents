@@ -3,7 +3,7 @@ namespace Alma.Events
 [<RequireQualifiedAccess>]
 module JsonSchema =
     open NJsonSchema
-    open Alma.ErrorHandling
+    open Feather.ErrorHandling
 
     type JsonSchemaValidationError =
         | InvalidJson of Validation.ValidationError list

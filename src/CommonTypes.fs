@@ -3,7 +3,7 @@ namespace Alma.Events
 open System
 open System.Text.Json
 open FSharp.Data
-open Alma.ErrorHandling
+open Feather.ErrorHandling
 open Alma.Kafka
 open Alma.Kafka.MetaData
 

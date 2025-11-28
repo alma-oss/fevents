@@ -6,9 +6,11 @@
     <OutputType>Library</OutputType>
     <PackageId>Alma.Events</PackageId>
     <Version>5.2.0</Version>
-    <RootNamespace>Alma.Events</RootNamespace>
-    <RepositoryUrl>https://github.com/almacareer/prc-fevents.git</RepositoryUrl>
-    <PackageProjectUrl>https://github.com/almacareer/prc-fevents</PackageProjectUrl>
+    <Authors>Almacareer</Authors>
+    <Description>Event definitions for consent domain.</Description>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <RepositoryUrl>https://github.com/alma-oss/fevents.git</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/alma-oss/fevents</PackageProjectUrl>
   </PropertyGroup>
 
   <ItemGroup>
