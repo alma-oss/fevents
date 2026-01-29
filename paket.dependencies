@@ -1,16 +1,16 @@
-framework: net9.0
+framework: net10.0
 storage none
 
 source https://api.nuget.org/v3/index.json
-nuget FSharp.Core ~> 9.0
+nuget FSharp.Core ~> 10.0
 nuget FSharp.Data ~> 6.0
 nuget NJsonSchema ~> 11.0
 nuget CloudNative.CloudEvents ~> 2.8
 nuget CloudNative.CloudEvents.NewtonsoftJson ~> 2.8
 
-nuget Feather.ErrorHandling ~> 1.0
-nuget Alma.Kafka ~> 29.0
-nuget Alma.Serializer ~> 8.0
+nuget Feather.ErrorHandling ~> 2.0
+nuget Alma.Kafka ~> 30.0
+nuget Alma.Serializer ~> 9.0
 
 nuget Expecto
 nuget YoloDev.Expecto.TestSdk
