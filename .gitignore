@@ -27,3 +27,6 @@ release/*.nupkg
 
 # Example
 example/
+
+# APM dependencies
+apm_modules/
