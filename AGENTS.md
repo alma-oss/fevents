@@ -1,5 +1,9 @@
 # Alma.Events (fevents)
 
+This repo ships Agent Skill for the `Alma.Events` library. Compatible agents discover it automatically; see `.agents/skills/fevents/SKILL.md`.
+
+## Project Purpose
+
 Open-source F# library (`Alma.Events` NuGet package) providing event types, parsing, serialization, CloudEvents support, and JSON schema validation for the Alma platform's event-driven architecture. Used by downstream services to define, produce, consume, and validate domain events over Kafka following the CloudEvents v1.0 specification.
 
 ## Tech Stack
