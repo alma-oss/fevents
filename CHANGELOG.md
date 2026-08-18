@@ -2,6 +2,9 @@
 
 <!-- There is always Unreleased section on the top. Subsections (Add, Changed, Fix, Removed) should be Add as needed. -->
 ## Unreleased
+- Update dependencies
+    - `Alma.Kafka` 30.2
+    - `FSharp.Core` 10.1
 
 ## 7.0.0 - 2026-01-29
 - [**BC**] Use net10.0

@@ -11,13 +11,13 @@ Open-source F# library (`Alma.Events` NuGet package) providing event types, pars
 - **Linter:** FSharpLint (`fsharplint.json`)
 - **CI/CD:** GitHub Actions
 - **Key dependencies:**
-  - `FSharp.Core` ~> 10.0
+  - `FSharp.Core` ~> 10.1
   - `FSharp.Data` ~> 6.0 (JSON type providers for schema-based parsing)
   - `NJsonSchema` ~> 11.0 (runtime JSON schema validation)
   - `CloudNative.CloudEvents` ~> 2.8 (CloudEvents SDK — core types)
   - `CloudNative.CloudEvents.NewtonsoftJson` ~> 2.8 (CloudEvents JSON serialization)
   - `Feather.ErrorHandling` ~> 2.0 (Result/AsyncResult computation expressions)
-  - `Alma.Kafka` ~> 30.0 (Kafka event types: `Event`, `EventId`, `EventName`, `MetaData`, `RawEvent`, etc.)
+  - `Alma.Kafka` ~> 30.2 (Kafka event types: `Event`, `EventId`, `EventName`, `MetaData`, `RawEvent`, etc.)
   - `Alma.Serializer` ~> 9.0 (JSON serialization utilities)
 
 ## Commands
