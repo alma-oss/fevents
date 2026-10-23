@@ -2,6 +2,10 @@ STORAGE: NONE
 RESTRICTION: == net10.0
 NUGET
   remote: https://api.nuget.org/v3/index.json
+    Alma.EnvironmentModel (10.1)
+      Alma.ServiceIdentification (>= 11.0 < 12.0)
+      Feather.ErrorHandling (>= 2.0 < 3.0)
+      FSharp.Core (>= 10.0.102 < 11.0)
     Alma.Kafka (30.2)
       Alma.Metrics (>= 13.0 < 14.0)
       Alma.Serializer (>= 9.0 < 10.0)
