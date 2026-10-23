@@ -11,6 +11,7 @@ nuget CloudNative.CloudEvents.NewtonsoftJson ~> 2.8
 nuget Feather.ErrorHandling ~> 2.0
 nuget Alma.Kafka ~> 30.2
 nuget Alma.Serializer ~> 9.0
+nuget Alma.EnvironmentModel ~> 10.1
 
 // [ TESTS GROUP ]
 group Tests

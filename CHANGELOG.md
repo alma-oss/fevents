@@ -2,6 +2,12 @@
 
 <!-- There is always Unreleased section on the top. Subsections (Add, Changed, Fix, Removed) should be Add as needed. -->
 ## Unreleased
+- Add `EventSource` case `SoftwareComponent`
+- Add the CloudEvents spec form next to the strict one
+    - `Envelope` (`id`, `type`, `source` required; `subject`, `dataschema`, `time`, extension attributes optional) and `CloudEvent.createFromEnvelope`
+    - `ExtensionName` / `ExtensionValue` (string, timestamp, integer, boolean) and `CloudEvent.tryExtension`
+    - `CloudEvent.tryData` to read the typed data back
+    - `CloudEvent.parse` accepts a relative `source` and a missing `dataschema` and carries extension attributes; `MissingDataSchema` is raised only for a present but invalid one
 
 ## 7.1.0 - 2026-08-18
 - Update dependencies

@@ -57,5 +57,17 @@
                 "language": "CZ"
             }
         }
+    },
+    {
+        "specversion": "version",
+        "type": "status.incident.started",
+        "source": "alma-status-prod-stable@dev1-services",
+        "id": "1db372d2-3617-4cbc-a8d1-e7ab6f3b8ad8",
+        "time": "date-time-string",
+        "datacontenttype": "application/json",
+        "recordedtime": "date-time-string",
+        "data": {
+            "some": "event"
+        }
     }
 ]
