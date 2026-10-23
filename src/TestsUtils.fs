@@ -14,7 +14,7 @@ module TestsUtils =
         let splitLines (string: string) =
             let normalizedJson =
                 try Serialize.toJsonPretty(Newtonsoft.Json.JsonConvert.DeserializeObject(string))
-                with e -> failwithf "Given string is not valid json: %A\nGiven string:\n%s\n" e string
+                with e -> raise (System.Exception(sprintf "Given string is not valid json: %A\nGiven string:\n%s\n" e string))
 
             normalizedJson.Split("\n")
 
@@ -51,7 +51,7 @@ module TestsUtils =
 
         expectedLines
         |> List.iteri (fun i expected ->
-            assertEquals actualLines.[i] expected description
+            assertEquals actualLines[i] expected description
         )
 
     module AssertSerializedEvent =

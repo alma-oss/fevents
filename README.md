@@ -14,6 +14,30 @@ Add following into `paket.references`
 Alma.Events
 ```
 
+## CloudEvents
+
+Two ways to build an envelope ([CloudEvents v1.0](https://github.com/cloudevents/spec/blob/v1.0/spec.md)):
+
+- **strict** (`CloudEvent.create`): `id` and `time` come from the common event, `source` is an absolute URI, `dataschema` is required. The original, internal policy.
+- **spec** (`CloudEvent.createFromEnvelope`): only `id`, `type` and `source` are required; `source` is any URI-reference (for example the emitting software component `instance@environment`), `subject`, `dataschema`, `time` and extension attributes are optional.
+
+```fsharp
+open Alma.Events
+open Alma.Kafka
+
+let recordedTime = ExtensionName.create "recordedtime" |> Result.orFail
+
+let envelope =
+    Envelope.create (EventId id) (EventName "status.incident.started") (EventSource.ofSoftwareComponent softwareComponent)
+    |> Envelope.withSubject "web-client/2026-10-23T09:59:40Z"
+    |> Envelope.withTime startedAt
+    |> Envelope.withExtension recordedTime (ExtensionValue.Timestamp sweepTime)
+
+let json = CloudEvent.createFromEnvelope envelope data |> CloudEvent.toJson []
+```
+
+`CloudEvent.parse` reads both forms; `CloudEvent.tryExtension` and `CloudEvent.tryData` read an extension attribute (as a string after a parse) and the typed data back.
+
 ## Release
 1. Increment version in `Events.fsproj`
 2. Update `CHANGELOG.md`
