@@ -51,7 +51,7 @@ type ParseError<'ParseEventError> =
 [<RequireQualifiedAccess>]
 module CloudEvent =
     let private createCloudEvent (specVersion: CloudEventsSpecVersion) id source eventType subject dataSchema timestamp contentType (event: 'Event) =
-        let cloudEvent = new CloudEvent(specVersion)
+        let cloudEvent = CloudEvent(specVersion)
         cloudEvent.Id <- id |> EventId.value |> string
         cloudEvent.Source <- source |> EventSource.value
         cloudEvent.Type <- eventType |> EventName.value
