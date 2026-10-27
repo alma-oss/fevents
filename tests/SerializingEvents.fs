@@ -19,7 +19,7 @@ type ProvidedData = {
     Description: string
 }
 
-let event (fileName: string) = $"Fixtures/SerializingEvents/{fileName}" |> File.ReadAllText
+let event (fileName: string) = Path.Combine(System.AppContext.BaseDirectory, "Fixtures", "SerializingEvents", fileName) |> File.ReadAllText
 let eventJsonValue (event: string) = event |> JsonValue.Parse |> RawJson.JsonValue
 let eventJsonElement (event: string) = event |> JsonDocument.Parse |> (fun doc -> doc.RootElement |> RawJson.JsonElement)
 let instance (value: string) = Create.Instance(value) |> okOrFail
