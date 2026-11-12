@@ -8,13 +8,14 @@ open CloudNative.CloudEvents.Http
 open CloudNative.CloudEvents.NewtonsoftJson
 
 open Alma.Kafka
+open Alma.EnvironmentModel
 open Feather.ErrorHandling
 open Alma.Serializer
+open Alma.Events.Utils
 
 type ContentType =
     | ApplicationJson
 
-type EventSource = EventSource of Uri
 type DataSchema = DataSchema of Uri
 
 [<RequireQualifiedAccess>]
@@ -23,63 +24,244 @@ module ContentType =
         | ApplicationJson -> "application/json"
 
 [<RequireQualifiedAccess>]
-module EventSource =
-    let tryParse (source: string) =
-        match Uri.TryCreate(source, UriKind.Absolute) with
-        | true, uri -> Some (EventSource uri)
-        | _ -> None
-
-    let value (EventSource eventSource) = eventSource
-
-[<RequireQualifiedAccess>]
 module DataSchema =
     let tryParse (dataSchema: string) =
-        match Uri.TryCreate(dataSchema, UriKind.Absolute) with
-        | true, uri -> Some (DataSchema uri)
-        | _ -> None
+        dataSchema
+        |> Uri.tryCreate UriKind.Absolute
+        |> Option.map DataSchema
 
     let value (DataSchema dataSchema) = dataSchema
+
+//
+// Extension attributes (CloudEvents spec: lowercase letters and digits, the spec's attribute types)
+//
+
+type ExtensionName = private ExtensionName of string
+
+[<RequireQualifiedAccess>]
+type ExtensionNameError =
+    | InvalidFormat of given: string
+    | Reserved of given: string
+
+[<RequireQualifiedAccess>]
+module ExtensionNameError =
+    let format = function
+        | ExtensionNameError.InvalidFormat given -> sprintf "Extension attribute name %A must consist of lowercase letters and digits only." given
+        | ExtensionNameError.Reserved given -> sprintf "Extension attribute name %A is a context attribute of the CloudEvents spec." given
+
+[<RequireQualifiedAccess>]
+module ExtensionName =
+    let private reserved = set [ "specversion"; "id"; "source"; "type"; "subject"; "time"; "datacontenttype"; "dataschema"; "data"; "data_base64" ]
+
+    let create (name: string): Result<ExtensionName, ExtensionNameError> =
+        if String.IsNullOrEmpty name || not (name |> Seq.forall (fun c -> Char.IsAsciiLetterLower c || Char.IsAsciiDigit c)) then
+            Error (ExtensionNameError.InvalidFormat name)
+        elif reserved.Contains name then
+            Error (ExtensionNameError.Reserved name)
+        else
+            Ok (ExtensionName name)
+
+    let value (ExtensionName name) = name
+
+[<RequireQualifiedAccess>]
+type ExtensionValue =
+    | String of string
+    | Timestamp of DateTimeOffset
+    | Integer of int
+    | Boolean of bool
+
+[<RequireQualifiedAccess>]
+module ExtensionValue =
+    let private attributeType = function
+        | ExtensionValue.String _ -> CloudEventAttributeType.String
+        | ExtensionValue.Timestamp _ -> CloudEventAttributeType.Timestamp
+        | ExtensionValue.Integer _ -> CloudEventAttributeType.Integer
+        | ExtensionValue.Boolean _ -> CloudEventAttributeType.Boolean
+
+    let internal attribute (name: ExtensionName) (value: ExtensionValue) =
+        CloudEventAttribute.CreateExtension(ExtensionName.value name, attributeType value)
+
+    let internal boxed = function
+        | ExtensionValue.String value -> box value
+        | ExtensionValue.Timestamp value -> box value
+        | ExtensionValue.Integer value -> box value
+        | ExtensionValue.Boolean value -> box value
+
+    let internal ofObject (value: obj) =
+        match value with
+        | null -> None
+        | :? string as value -> Some (ExtensionValue.String value)
+        | :? DateTimeOffset as value -> Some (ExtensionValue.Timestamp value)
+        | :? int as value -> Some (ExtensionValue.Integer value)
+        | :? bool as value -> Some (ExtensionValue.Boolean value)
+        | other -> Some (ExtensionValue.String (string other))
+
+    let value = function
+        | ExtensionValue.String value -> value
+        | ExtensionValue.Timestamp value -> value.ToString("o")
+        | ExtensionValue.Integer value -> string value
+        | ExtensionValue.Boolean value -> if value then "true" else "false"
+
+type Extension = {
+    Name: ExtensionName
+    Value: ExtensionValue
+}
+
+//
+// Source (CloudEvents spec: a non-empty URI-reference)
+//
+
+type EventSource =
+    /// An absolute URI.
+    | EventSource of Uri
+    /// The emitting `instance@environment`; its type (`ApplicationComponent`, `SystemSoftware`, `Storage`) travels in the `sourcetype` extension attribute.
+    | SoftwareComponent of SoftwareComponent
+    /// Any other relative URI-reference (an application-specific identifier).
+    | Reference of Uri
+
+[<RequireQualifiedAccess>]
+module EventSource =
+    /// Extension attribute carrying the type of a `SoftwareComponent` source, as `source` itself only encodes `instance@environment`.
+    let typeExtensionName = ExtensionName "sourcetype"
+
+    let private typeCode = function
+        | ApplicationComponent _ -> Some "ApplicationComponent"
+        | SystemSoftware _ -> Some "SystemSoftware"
+        | Storage _ -> Some "Storage"
+        | Untyped _ -> None
+
+    /// The `sourcetype` extension of a typed software component source, if any.
+    let typeExtension: EventSource -> Extension option = function
+        | SoftwareComponent softwareComponent ->
+            softwareComponent
+            |> typeCode
+            |> Option.map (fun code -> { Name = typeExtensionName; Value = ExtensionValue.String code })
+        | EventSource _ | Reference _ -> None
+
+    let private tryParseWithType (softwareComponentType: string) (source: string) =
+        if String.IsNullOrWhiteSpace source then None
+        else
+            match source |> Uri.tryCreate UriKind.RelativeOrAbsolute with
+            | Some uri when uri.IsAbsoluteUri -> Some (EventSource uri)
+            | Some uri ->
+                match SoftwareComponent.parseWithType "-" (source, softwareComponentType) with
+                | Ok softwareComponent -> Some (SoftwareComponent softwareComponent)
+                | Error _ -> Some (Reference uri)
+            | None -> None
+
+    /// Any non-empty URI-reference; a software component is `Untyped`.
+    let tryParse: string -> EventSource option = tryParseWithType ""
+
+    /// As `tryParse`, typing a software component by the `sourcetype` extension when present.
+    let tryParseWithExtensions (extensions: Extension list) (source: string) =
+        let softwareComponentType =
+            extensions
+            |> List.tryFind (fun extension -> extension.Name = typeExtensionName)
+            |> Option.map (fun extension -> extension.Value |> ExtensionValue.value)
+            |> Option.defaultValue ""
+
+        source |> tryParseWithType softwareComponentType
+
+    let value: EventSource -> Uri = function
+        | EventSource uri -> uri
+        | SoftwareComponent softwareComponent -> Uri(softwareComponent |> SoftwareComponent.value, UriKind.RelativeOrAbsolute)
+        | Reference uri -> uri
 
 type ParseError<'ParseEventError> =
     | InvalidJson of string * exn
     | UnsupportedVersion of string
     | UnsupportedContentType of string
     | MissingSource of string
+    /// A `dataschema` is present but not an absolute URI (an absent one is allowed).
     | MissingDataSchema of string
+    /// A `time` is present but not a valid timestamp (an absent one is allowed).
+    | InvalidTime of string
     | EventParseError of string * 'ParseEventError
+
+/// Context attributes of an envelope; only `id`, `type` and `source` are required by the spec.
+type Envelope = {
+    Id: EventId
+    Type: EventName
+    Source: EventSource
+    Subject: string option
+    DataSchema: DataSchema option
+    Time: DateTimeOffset option
+    Extensions: Extension list
+}
+
+[<RequireQualifiedAccess>]
+module Envelope =
+    let create (id: EventId) (eventType: EventName) (source: EventSource): Envelope = {
+        Id = id
+        Type = eventType
+        Source = source
+        Subject = None
+        DataSchema = None
+        Time = None
+        Extensions = []
+    }
+
+    let withSubject (subject: string) (envelope: Envelope) = { envelope with Subject = Some subject }
+    let withDataSchema (dataSchema: DataSchema) (envelope: Envelope) = { envelope with DataSchema = Some dataSchema }
+    let withTime (time: DateTimeOffset) (envelope: Envelope) = { envelope with Time = Some time }
+
+    let withExtension (name: ExtensionName) (value: ExtensionValue) (envelope: Envelope) =
+        { envelope with Extensions = envelope.Extensions @ [ ({ Name = name; Value = value }: Extension) ] }
 
 [<RequireQualifiedAccess>]
 module CloudEvent =
-    let private createCloudEvent (specVersion: CloudEventsSpecVersion) id source eventType subject dataSchema timestamp contentType (event: 'Event) =
-        let cloudEvent = new CloudEvent(specVersion)
-        cloudEvent.Id <- id |> EventId.value |> string
-        cloudEvent.Source <- source |> EventSource.value
-        cloudEvent.Type <- eventType |> EventName.value
+    let private createCloudEvent (specVersion: CloudEventsSpecVersion) (envelope: Envelope) contentType (event: 'Event) =
+        let cloudEvent = CloudEvent(specVersion)
+        cloudEvent.Id <- envelope.Id |> EventId.value |> string
+        cloudEvent.Source <- envelope.Source |> EventSource.value
+        cloudEvent.Type <- envelope.Type |> EventName.value
         cloudEvent.DataContentType <- contentType |> ContentType.value
-        cloudEvent.DataSchema <- dataSchema |> DataSchema.value
 
-        match subject with
-        | Some subj -> cloudEvent.Subject <- subj
-        | None -> ()
+        envelope.DataSchema |> Option.iter (fun dataSchema -> cloudEvent.DataSchema <- dataSchema |> DataSchema.value)
+        envelope.Subject |> Option.iter (fun subject -> cloudEvent.Subject <- subject)
+        envelope.Time |> Option.iter (fun time -> cloudEvent.Time <- Nullable time)
 
-        cloudEvent.Time <- Nullable(DateTimeOffset.Parse timestamp)
+        let extensions =
+            match envelope.Source |> EventSource.typeExtension with
+            | Some typeExtension -> (envelope.Extensions |> List.filter (fun extension -> extension.Name <> typeExtension.Name)) @ [ typeExtension ]
+            | None -> envelope.Extensions
+
+        for extension in extensions do
+            cloudEvent[ExtensionValue.attribute extension.Name extension.Value] <- ExtensionValue.boxed extension.Value
+
         cloudEvent.Data <- event
 
         Validation.CheckCloudEventArgument(cloudEvent, "cloudEvent")
 
+    /// Spec form: any envelope (relative `source`, no `dataschema`, extension attributes).
+    let createFromEnvelope (envelope: Envelope) (event: 'Event) =
+        createCloudEvent CloudEventsSpecVersion.V1_0 envelope ApplicationJson event
+
+    /// Strict form: `id` and `time` from the common event, absolute `source` and `dataschema` required.
     let create toCommon subject eventType dataSchema source (event: 'Event) =
         let commonEvent: CommonEvent = event |> toCommon
 
-        createCloudEvent
-            CloudEventsSpecVersion.V1_0
-            commonEvent.Id
-            source
-            eventType
-            (subject event)
-            dataSchema
-            commonEvent.Timestamp
-            ApplicationJson
-            event
+        let envelope: Envelope = {
+            Id = commonEvent.Id
+            Type = eventType
+            Source = source
+            Subject = subject event
+            DataSchema = Some dataSchema
+            Time = Some (DateTimeOffset.Parse commonEvent.Timestamp)
+            Extensions = []
+        }
+
+        createCloudEvent CloudEventsSpecVersion.V1_0 envelope ApplicationJson event
+
+    /// The populated extension attribute of that name, if any.
+    let tryExtension (name: ExtensionName) (cloudEvent: CloudEvent): ExtensionValue option =
+        cloudEvent[ExtensionName.value name] |> ExtensionValue.ofObject
+
+    /// The carried data when it is of the expected type.
+    let tryData<'Event> (cloudEvent: CloudEvent): 'Event option =
+        match cloudEvent.Data with
+        | :? 'Event as data -> Some data
+        | _ -> None
 
     let mapDataResult (f: 'EventA -> Result<'EventB, 'Error>) (event: CloudEvent): Result<CloudEvent, 'Error> =
         match event.Data with
@@ -113,31 +295,51 @@ module CloudEvent =
             | "application/json" -> Ok ApplicationJson
             | _ -> Error (UnsupportedContentType rawEvent)
 
+        let extensions =
+            match parsed.JsonValue with
+            | JsonValue.Record properties ->
+                properties
+                |> Array.toList
+                |> List.choose (fun (name, value) ->
+                    match ExtensionName.create name, value with
+                    | Ok name, JsonValue.String value -> Some ({ Name = name; Value = ExtensionValue.String value }: Extension)
+                    | Ok name, JsonValue.Boolean value -> Some ({ Name = name; Value = ExtensionValue.Boolean value }: Extension)
+                    | Ok name, JsonValue.Number value when Decimal.Truncate value = value && value >= decimal Int32.MinValue && value <= decimal Int32.MaxValue ->
+                        Some ({ Name = name; Value = ExtensionValue.Integer (int value) }: Extension)
+                    | Ok name, (JsonValue.Number _ | JsonValue.Float _) -> Some ({ Name = name; Value = ExtensionValue.String (value.ToString()) }: Extension)
+                    | _ -> None
+                )
+            | _ -> []
+
         let! source =
             parsed.Source
-            |> EventSource.tryParse
+            |> EventSource.tryParseWithExtensions extensions
             |> Result.ofOption (MissingSource rawEvent)
 
         let! dataSchema =
             parsed.Dataschema
-            |> DataSchema.tryParse
-            |> Result.ofOption (MissingDataSchema rawEvent)
+            |> Result.traverseOption (DataSchema.tryParse >> Result.ofOption (MissingDataSchema rawEvent))
+
+        let! time =
+            parsed.Time
+            |> Result.traverseOption (DateTimeOffset.tryParse >> Result.ofOption (InvalidTime rawEvent))
 
         let! event =
             parsed.Data.JsonValue.ToString()
             |> parseEvent
             |> Result.mapError (fun err -> EventParseError (rawEvent, err))
 
-        return createCloudEvent
-            specVersion
-            (EventId parsed.Id)
-            source
-            (EventName parsed.Type)
-            parsed.Subject
-            dataSchema
-            parsed.Time
-            contentType
-            event
+        let envelope: Envelope = {
+            Id = EventId parsed.Id
+            Type = EventName parsed.Type
+            Source = source
+            Subject = parsed.Subject
+            DataSchema = dataSchema
+            Time = time
+            Extensions = extensions
+        }
+
+        return createCloudEvent specVersion envelope contentType event
     }
 
     let private createFormatter options =

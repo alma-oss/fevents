@@ -6,3 +6,4 @@ CloudNative.CloudEvents.NewtonsoftJson
 Feather.ErrorHandling
 Alma.Kafka
 Alma.Serializer
+Alma.EnvironmentModel

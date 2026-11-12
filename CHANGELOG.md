@@ -2,6 +2,17 @@
 
 <!-- There is always Unreleased section on the top. Subsections (Add, Changed, Fix, Removed) should be Add as needed. -->
 ## Unreleased
+- Add `EventSource` cases `SoftwareComponent` (`instance@environment`) and `Reference` (any other relative URI-reference)
+- Add `EventSource` functions `typeExtensionName`, `typeExtension` and `tryParseWithExtensions` carrying the software component type name in the `sourcetype` extension attribute
+- Add the CloudEvents spec form next to the strict one
+    - `Envelope` (`id`, `type`, `source` required; `subject`, `dataschema`, `time`, extension attributes optional) and `CloudEvent.createFromEnvelope`
+    - `ExtensionName` / `ExtensionValue` (string, timestamp, integer, boolean) and `CloudEvent.tryExtension`
+    - `CloudEvent.tryData` to read the typed data back
+    - `CloudEvent.parse` accepts a relative `source`, a missing `dataschema` and a missing `time` and carries extension attributes; `MissingDataSchema` is raised only for a present but invalid one
+- Add `ParseError.InvalidTime` case for a present but invalid `time`
+- Add `PackageReadmeFile` to the NuGet package
+- Update dependencies
+    - `Feather.ErrorHandling` 2.3
 
 ## 7.1.0 - 2026-08-18
 - Update dependencies

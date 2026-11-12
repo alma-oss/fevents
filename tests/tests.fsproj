@@ -18,7 +18,12 @@
   <ItemGroup>
     <Compile Include="SerializingEvents.fs" />
     <Compile Include="CloudEvents.fs" />
+    <Compile Include="CloudEventEnvelope.fs" />
     <Compile Include="Tests.fs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="Fixtures/**/*.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <Import Project="..\.paket\Paket.Restore.targets" />
