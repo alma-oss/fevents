@@ -19,7 +19,13 @@ Alma.Events
 Two ways to build an envelope ([CloudEvents v1.0](https://github.com/cloudevents/spec/blob/v1.0/spec.md)):
 
 - **strict** (`CloudEvent.create`): `id` and `time` come from the common event, `source` is an absolute URI, `dataschema` is required. The original, internal policy.
-- **spec** (`CloudEvent.createFromEnvelope`): only `id`, `type` and `source` are required; `source` is any URI-reference (for example the emitting software component `instance@environment`), `subject`, `dataschema`, `time` and extension attributes are optional.
+- **spec** (`CloudEvent.createFromEnvelope`): only `id`, `type` and `source` are required; `source` is any non-empty URI-reference, `subject`, `dataschema`, `time` and extension attributes are optional.
+
+`EventSource` covers the URI-reference forms of `source`:
+
+- `EventSource of Uri` — an absolute URI (`https://dev-consents.almacareer.tech/acl`)
+- `SoftwareComponent of SoftwareComponent` — the emitting `instance@environment`; a typed component (`ApplicationComponent`, `SystemSoftware`, `Storage`) carries its type name in the `sourcetype` extension attribute, as the `source` itself only encodes `instance@environment`
+- `Reference of Uri` — any other relative reference (`/sensors/tn-1`, `1-555-123-4567`)
 
 ```fsharp
 open System
@@ -60,7 +66,7 @@ let json =
 }
 ```
 
-`CloudEvent.parse` reads both forms; `CloudEvent.tryExtension` and `CloudEvent.tryData` read an extension attribute (as a string after a parse) and the typed data back.
+`CloudEvent.parse` reads both forms (a present but invalid `time` or `dataschema` is an error, an absent one is allowed); `CloudEvent.tryExtension` and `CloudEvent.tryData` read an extension attribute (as a string after a parse) and the typed data back. `EventSource.tryParseWithExtensions` re-types a software component `source` by the parsed `sourcetype` extension.
 
 ```fsharp
 // parseIncident: string -> Result<IncidentData, 'Error> parses the `data` attribute

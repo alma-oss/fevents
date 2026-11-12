@@ -69,5 +69,16 @@
         "data": {
             "some": "event"
         }
+    },
+    {
+        "specversion": "version",
+        "type": "status.incident.started",
+        "source": "alma-status-prod-stable@dev1-services",
+        "id": "1db372d2-3617-4cbc-a8d1-e7ab6f3b8ad8",
+        "datacontenttype": "application/json",
+        "sourcetype": "ApplicationComponent",
+        "data": {
+            "some": "event"
+        }
     }
 ]

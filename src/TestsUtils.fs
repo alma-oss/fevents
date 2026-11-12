@@ -14,7 +14,7 @@ module TestsUtils =
         let splitLines (string: string) =
             let normalizedJson =
                 try Serialize.toJsonPretty(Newtonsoft.Json.JsonConvert.DeserializeObject(string))
-                with e -> raise (System.Exception(sprintf "Given string is not valid json: %A\nGiven string:\n%s\n" e string))
+                with e -> raise (System.Exception(sprintf "Given string is not valid json:\nGiven string:\n%s\n" string, e))
 
             normalizedJson.Split("\n")
 

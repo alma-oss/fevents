@@ -8,7 +8,7 @@ nuget NJsonSchema ~> 11.0
 nuget CloudNative.CloudEvents ~> 2.8
 nuget CloudNative.CloudEvents.NewtonsoftJson ~> 2.8
 
-nuget Feather.ErrorHandling ~> 2.0
+nuget Feather.ErrorHandling ~> 2.3
 nuget Alma.Kafka ~> 30.2
 nuget Alma.Serializer ~> 9.0
 nuget Alma.EnvironmentModel ~> 10.1

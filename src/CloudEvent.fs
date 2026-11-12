@@ -11,13 +11,10 @@ open Alma.Kafka
 open Alma.EnvironmentModel
 open Feather.ErrorHandling
 open Alma.Serializer
+open Alma.Events.Utils
 
 type ContentType =
     | ApplicationJson
-
-type EventSource =
-    | EventSource of Uri
-    | SoftwareComponent of SoftwareComponent
 
 type DataSchema = DataSchema of Uri
 
@@ -27,40 +24,13 @@ module ContentType =
         | ApplicationJson -> "application/json"
 
 [<RequireQualifiedAccess>]
-module EventSource =
-    let private tryParseUri (source: string) =
-        match Uri.TryCreate(source, UriKind.Absolute) with
-        | true, uri -> Some uri
-        | _ -> None
-
-    let private (|IsUri|_|) = tryParseUri
-
-    /// Strict form: an absolute URI.
-    let tryParse = function
-        | IsUri uri -> Some (EventSource uri)
-        | other -> other |> SoftwareComponent.parse "-" |> Result.toOption |> Option.map SoftwareComponent
-
-    let value: EventSource -> Uri = function
-        | EventSource uri -> uri
-        | SoftwareComponent sc -> Uri(sc |> SoftwareComponent.value, UriKind.Relative)
-
-[<RequireQualifiedAccess>]
 module DataSchema =
     let tryParse (dataSchema: string) =
-        match Uri.TryCreate(dataSchema, UriKind.Absolute) with
-        | true, uri -> Some (DataSchema uri)
-        | _ -> None
+        dataSchema
+        |> Uri.tryCreate UriKind.Absolute
+        |> Option.map DataSchema
 
     let value (DataSchema dataSchema) = dataSchema
-
-type ParseError<'ParseEventError> =
-    | InvalidJson of string * exn
-    | UnsupportedVersion of string
-    | UnsupportedContentType of string
-    | MissingSource of string
-    /// A `dataschema` is present but not an absolute URI (an absent one is allowed).
-    | MissingDataSchema of string
-    | EventParseError of string * 'ParseEventError
 
 //
 // Extension attributes (CloudEvents spec: lowercase letters and digits, the spec's attribute types)
@@ -137,6 +107,77 @@ type Extension = {
     Value: ExtensionValue
 }
 
+//
+// Source (CloudEvents spec: a non-empty URI-reference)
+//
+
+type EventSource =
+    /// An absolute URI.
+    | EventSource of Uri
+    /// The emitting `instance@environment`; its type (`ApplicationComponent`, `SystemSoftware`, `Storage`) travels in the `sourcetype` extension attribute.
+    | SoftwareComponent of SoftwareComponent
+    /// Any other relative URI-reference (an application-specific identifier).
+    | Reference of Uri
+
+[<RequireQualifiedAccess>]
+module EventSource =
+    /// Extension attribute carrying the type of a `SoftwareComponent` source, as `source` itself only encodes `instance@environment`.
+    let typeExtensionName = ExtensionName "sourcetype"
+
+    let private typeCode = function
+        | ApplicationComponent _ -> Some "ApplicationComponent"
+        | SystemSoftware _ -> Some "SystemSoftware"
+        | Storage _ -> Some "Storage"
+        | Untyped _ -> None
+
+    /// The `sourcetype` extension of a typed software component source, if any.
+    let typeExtension: EventSource -> Extension option = function
+        | SoftwareComponent softwareComponent ->
+            softwareComponent
+            |> typeCode
+            |> Option.map (fun code -> { Name = typeExtensionName; Value = ExtensionValue.String code })
+        | EventSource _ | Reference _ -> None
+
+    let private tryParseWithType (softwareComponentType: string) (source: string) =
+        if String.IsNullOrWhiteSpace source then None
+        else
+            match source |> Uri.tryCreate UriKind.RelativeOrAbsolute with
+            | Some uri when uri.IsAbsoluteUri -> Some (EventSource uri)
+            | Some uri ->
+                match SoftwareComponent.parseWithType "-" (source, softwareComponentType) with
+                | Ok softwareComponent -> Some (SoftwareComponent softwareComponent)
+                | Error _ -> Some (Reference uri)
+            | None -> None
+
+    /// Any non-empty URI-reference; a software component is `Untyped`.
+    let tryParse: string -> EventSource option = tryParseWithType ""
+
+    /// As `tryParse`, typing a software component by the `sourcetype` extension when present.
+    let tryParseWithExtensions (extensions: Extension list) (source: string) =
+        let softwareComponentType =
+            extensions
+            |> List.tryFind (fun extension -> extension.Name = typeExtensionName)
+            |> Option.map (fun extension -> extension.Value |> ExtensionValue.value)
+            |> Option.defaultValue ""
+
+        source |> tryParseWithType softwareComponentType
+
+    let value: EventSource -> Uri = function
+        | EventSource uri -> uri
+        | SoftwareComponent softwareComponent -> Uri(softwareComponent |> SoftwareComponent.value, UriKind.RelativeOrAbsolute)
+        | Reference uri -> uri
+
+type ParseError<'ParseEventError> =
+    | InvalidJson of string * exn
+    | UnsupportedVersion of string
+    | UnsupportedContentType of string
+    | MissingSource of string
+    /// A `dataschema` is present but not an absolute URI (an absent one is allowed).
+    | MissingDataSchema of string
+    /// A `time` is present but not a valid timestamp (an absent one is allowed).
+    | InvalidTime of string
+    | EventParseError of string * 'ParseEventError
+
 /// Context attributes of an envelope; only `id`, `type` and `source` are required by the spec.
 type Envelope = {
     Id: EventId
@@ -180,7 +221,12 @@ module CloudEvent =
         envelope.Subject |> Option.iter (fun subject -> cloudEvent.Subject <- subject)
         envelope.Time |> Option.iter (fun time -> cloudEvent.Time <- Nullable time)
 
-        for extension in envelope.Extensions do
+        let extensions =
+            match envelope.Source |> EventSource.typeExtension with
+            | Some typeExtension -> (envelope.Extensions |> List.filter (fun extension -> extension.Name <> typeExtension.Name)) @ [ typeExtension ]
+            | None -> envelope.Extensions
+
+        for extension in extensions do
             cloudEvent[ExtensionValue.attribute extension.Name extension.Value] <- ExtensionValue.boxed extension.Value
 
         cloudEvent.Data <- event
@@ -249,21 +295,6 @@ module CloudEvent =
             | "application/json" -> Ok ApplicationJson
             | _ -> Error (UnsupportedContentType rawEvent)
 
-        let! source =
-            parsed.Source
-            |> EventSource.tryParse
-            |> Result.ofOption (MissingSource rawEvent)
-
-        let! dataSchema =
-            match parsed.Dataschema with
-            | None -> Ok None
-            | Some dataSchema -> dataSchema |> DataSchema.tryParse |> Option.map Some |> Result.ofOption (MissingDataSchema rawEvent)
-
-        let! event =
-            parsed.Data.JsonValue.ToString()
-            |> parseEvent
-            |> Result.mapError (fun err -> EventParseError (rawEvent, err))
-
         let extensions =
             match parsed.JsonValue with
             | JsonValue.Record properties ->
@@ -280,13 +311,31 @@ module CloudEvent =
                 )
             | _ -> []
 
+        let! source =
+            parsed.Source
+            |> EventSource.tryParseWithExtensions extensions
+            |> Result.ofOption (MissingSource rawEvent)
+
+        let! dataSchema =
+            parsed.Dataschema
+            |> Result.traverseOption (DataSchema.tryParse >> Result.ofOption (MissingDataSchema rawEvent))
+
+        let! time =
+            parsed.Time
+            |> Result.traverseOption (DateTimeOffset.tryParse >> Result.ofOption (InvalidTime rawEvent))
+
+        let! event =
+            parsed.Data.JsonValue.ToString()
+            |> parseEvent
+            |> Result.mapError (fun err -> EventParseError (rawEvent, err))
+
         let envelope: Envelope = {
             Id = EventId parsed.Id
             Type = EventName parsed.Type
             Source = source
             Subject = parsed.Subject
             DataSchema = dataSchema
-            Time = Some (DateTimeOffset.Parse parsed.Time)
+            Time = time
             Extensions = extensions
         }
 
