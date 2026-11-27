@@ -79,7 +79,7 @@ type CloudEventTestData = {
     Description: string
 }
 
-let cloudEvent (fileName: string) = $"Fixtures/CloudEvents/{fileName}" |> File.ReadAllText
+let cloudEvent (fileName: string) = Path.Combine(__SOURCE_DIRECTORY__, "Fixtures", "CloudEvents", fileName) |> File.ReadAllText
 
 let provideCloudEvents =
     [
